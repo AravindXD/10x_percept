@@ -1,6 +1,6 @@
 # Cuboid Rotation Analysis from Depth Sensor Data
 
-A computer vision solution for estimating the 3D rotation of a cuboid using depth image processing and plane segmentation.
+A CV solution for estimating the 3D rotation of a cuboid using depth image processing and plane segmentation.
 
 [![ROS2](https://img.shields.io/badge/ROS2-Humble-blue)](https://docs.ros.org/en/humble/)
 [![Python](https://img.shields.io/badge/Python-3.10+-green)](https://www.python.org/)
@@ -9,12 +9,6 @@ A computer vision solution for estimating the 3D rotation of a cuboid using dept
 ![alt text](validation_frames/frame_000_validation.png) 
 
 ![alt text](validation_frames/frame_001_validation.png) 
-
-![alt text](validation_frames/frame_002_validation.png) ![alt text](validation_frames/frame_003_validation.png) 
-
-![alt text](validation_frames/frame_004_validation.png) 
-
-![alt text](validation_frames/frame_005_validation.png)
 
 ---
 
