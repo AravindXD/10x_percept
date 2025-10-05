@@ -1,0 +1,238 @@
+{
+  "metadata": {
+    "assignment": "10xConstruction - Cuboid Rotation Analysis",
+    "author": "Aravind Nagarajan",
+    "university": "VIT",
+    "date": "2025-10-06 03:54:05",
+    "algorithm_version": "1.0"
+  },
+  "camera_parameters": {
+    "width": 640,
+    "height": 480,
+    "fx": 525.0,
+    "fy": 525.0,
+    "cx": 319.5,
+    "cy": 239.5,
+    "notes": "Assumed standard 640x480 depth camera parameters"
+  },
+  "algorithm_parameters": {
+    "ransac_distance_threshold_m": 0.01,
+    "ransac_iterations": 1000,
+    "angle_threshold_deg": 5.0,
+    "statistical_outlier_neighbors": 20,
+    "statistical_outlier_std_ratio": 2.0
+  },
+  "summary_statistics": {
+    "total_frames_processed": 12,
+    "unique_faces_detected": 6,
+    "average_normal_angle_deg": 140.01690442920125,
+    "std_normal_angle_deg": 15.466315065739986,
+    "average_visible_area_m2": 4.372753621777024,
+    "std_visible_area_m2": 6.399505901497122,
+    "min_visible_area_m2": 1.275956952827494,
+    "max_visible_area_m2": 25.474940306335156
+  },
+  "rotation_analysis": {
+    "rotation_axis_direction": [
+      0.9984422279355853,
+      -0.03700401315539423,
+      -0.04175907668303991
+    ],
+    "pca_explained_variances": [
+      0.504128735136254,
+      0.039759808579736794,
+      0.0001370403385720493
+    ],
+    "rotation_axis_variances": null,
+    "unique_normals_list": [
+      [
+        0.01916844744476254,
+        -0.2466776702978322,
+        -0.9689079923289886
+      ],
+      [
+        0.03838026709596055,
+        0.5659805603290554,
+        -0.8235247175569481
+      ],
+      [
+        0.05869573402751397,
+        0.8175951501663039,
+        -0.5727940129152106
+      ],
+      [
+        -0.010897951845077228,
+        -0.5016659074567597,
+        -0.8649928045603433
+      ],
+      [
+        -0.01685137207512223,
+        -0.7543918899755009,
+        -0.6562079758722669
+      ],
+      [
+        0.013573984011932678,
+        -0.9031606163614603,
+        -0.42908815878748163
+      ]
+    ]
+  },
+  "per_frame_results": [
+    {
+      "frame": 0,
+      "timestamp": 1702944983.4883974,
+      "normal": [
+        0.01916844744476254,
+        -0.2466776702978322,
+        -0.9689079923289886
+      ],
+      "angle_degrees": 165.67502936620383,
+      "area_m2": 2.108382805730456,
+      "num_inliers": 127958,
+      "is_new_unique_normal": true
+    },
+    {
+      "frame": 1,
+      "timestamp": 1702944984.9562814,
+      "normal": [
+        0.03838026709596055,
+        0.5659805603290554,
+        -0.8235247175569481
+      ],
+      "angle_degrees": 145.4392040983624,
+      "area_m2": 2.295855499550434,
+      "num_inliers": 121371,
+      "is_new_unique_normal": true
+    },
+    {
+      "frame": 2,
+      "timestamp": 1702944985.690193,
+      "normal": [
+        0.05869573402751397,
+        0.8175951501663039,
+        -0.5727940129152106
+      ],
+      "angle_degrees": 124.9452914919443,
+      "area_m2": 3.7216618896656017,
+      "num_inliers": 68511,
+      "is_new_unique_normal": true
+    },
+    {
+      "frame": 3,
+      "timestamp": 1702944986.4241028,
+      "normal": [
+        -0.010897951845077228,
+        -0.5016659074567597,
+        -0.8649928045603433
+      ],
+      "angle_degrees": 149.88188363779503,
+      "area_m2": 1.3343814146628494,
+      "num_inliers": 122072,
+      "is_new_unique_normal": true
+    },
+    {
+      "frame": 4,
+      "timestamp": 1702944989.2929728,
+      "normal": [
+        -0.01685137207512223,
+        -0.7543918899755009,
+        -0.6562079758722669
+      ],
+      "angle_degrees": 131.0113086677944,
+      "area_m2": 2.9838106230990467,
+      "num_inliers": 102465,
+      "is_new_unique_normal": true
+    },
+    {
+      "frame": 5,
+      "timestamp": 1702944992.295391,
+      "normal": [
+        0.0006956147927669506,
+        -0.7631872295470787,
+        -0.646177041356558
+      ],
+      "angle_degrees": 130.25398345436892,
+      "area_m2": 2.7734948752896496,
+      "num_inliers": 125075,
+      "is_new_unique_normal": false
+    },
+    {
+      "frame": 6,
+      "timestamp": 1702944981.6201537,
+      "normal": [
+        0.013573984011932678,
+        -0.9031606163614603,
+        -0.42908815878748163
+      ],
+      "angle_degrees": 115.40970631995177,
+      "area_m2": 25.474940306335156,
+      "num_inliers": 82949,
+      "is_new_unique_normal": true
+    },
+    {
+      "frame": 7,
+      "timestamp": 1702944983.4883974,
+      "normal": [
+        0.019730797863489337,
+        -0.2513551404263348,
+        -0.9676937991931785
+      ],
+      "angle_degrees": 165.39650648966628,
+      "area_m2": 2.116373032364783,
+      "num_inliers": 125566,
+      "is_new_unique_normal": false
+    },
+    {
+      "frame": 8,
+      "timestamp": 1702944984.9562814,
+      "normal": [
+        0.033695486594354805,
+        0.5647565892251196,
+        -0.8245693476657856
+      ],
+      "angle_degrees": 145.54485405173293,
+      "area_m2": 2.276515792762426,
+      "num_inliers": 122088,
+      "is_new_unique_normal": false
+    },
+    {
+      "frame": 9,
+      "timestamp": 1702944985.690193,
+      "normal": [
+        0.055742096732248905,
+        0.8141746754212688,
+        -0.5779380732868916
+      ],
+      "angle_degrees": 125.30564799803048,
+      "area_m2": 3.14058066392741,
+      "num_inliers": 69153,
+      "is_new_unique_normal": false
+    },
+    {
+      "frame": 10,
+      "timestamp": 1702944986.4241028,
+      "normal": [
+        -0.008538546037675366,
+        -0.4958183607554036,
+        -0.8683842734466044
+      ],
+      "angle_degrees": 150.27142107781603,
+      "area_m2": 1.275956952827494,
+      "num_inliers": 125005,
+      "is_new_unique_normal": false
+    },
+    {
+      "frame": 11,
+      "timestamp": 1702944989.2929728,
+      "normal": [
+        -0.024382812595520654,
+        -0.7535358485059546,
+        -0.6569544911684088
+      ],
+      "angle_degrees": 131.06801649674844,
+      "area_m2": 2.9710896051089857,
+      "num_inliers": 106208,
+      "is_new_unique_normal": false
+    }
+  ]
+}

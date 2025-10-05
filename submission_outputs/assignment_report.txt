@@ -1,0 +1,78 @@
+================================================================================
+CUBOID ROTATION ANALYSIS - ASSIGNMENT SUBMISSION REPORT
+================================================================================
+
+ASSIGNMENT INFORMATION
+--------------------------------------------------------------------------------
+Assignment: 10xConstruction - Cuboid Rotation Analysis
+Author: Aravind Nagarajan
+University: VIT
+Date: 2025-10-06 03:54:05
+
+TASK DESCRIPTION
+--------------------------------------------------------------------------------
+A 3D cuboidal box is rotating around its central axis. Using depth sensor data,
+estimate the following:
+1. Normal angle and visible area (m²) of the largest visible face at each timestamp
+2. Axis of rotation vector about which the box is rotating
+
+CAMERA CONFIGURATION
+--------------------------------------------------------------------------------
+Image Resolution: 640 x 480 pixels
+Focal Lengths: fx = 525.0, fy = 525.0 pixels
+Principal Point: cx = 319.5, cy = 239.5 pixels
+Notes: Assumed standard 640x480 depth camera parameters
+
+ALGORITHM CONFIGURATION
+--------------------------------------------------------------------------------
+RANSAC Distance Threshold: 10 mm
+RANSAC Iterations: 1000
+Unique Normal Angle Threshold: 5.0°
+Outlier Removal - Neighbors: 20
+Outlier Removal - Std Ratio: 2.0
+
+SUMMARY RESULTS
+================================================================================
+Total Frames Processed: 12
+Unique Face Orientations Detected: 6
+
+Normal Angle Statistics:
+  Mean: 140.02°
+  Std Dev: 15.47°
+
+Visible Area Statistics:
+  Mean: 4.3728 m²
+  Std Dev: 6.3995 m²
+  Min: 1.2760 m²
+  Max: 25.4749 m²
+
+ROTATION AXIS ESTIMATION
+--------------------------------------------------------------------------------
+Rotation Axis Direction (unit vector):
+  X: +0.998442
+  Y: -0.037004
+  Z: -0.041759
+Magnitude: 1.000000
+
+PCA Explained Variances: [0.504128735136254, 0.039759808579736794, 0.0001370403385720493]
+
+PER-FRAME RESULTS SUMMARY
+================================================================================
+Frame    Timestamp    Angle (°)    Area (m²)    Unique  
+--------------------------------------------------------------------------------
+0        1702944983.488 165.68       2.1084       YES     
+1        1702944984.956 145.44       2.2959       YES     
+2        1702944985.690 124.95       3.7217       YES     
+3        1702944986.424 149.88       1.3344       YES     
+4        1702944989.293 131.01       2.9838       YES     
+5        1702944992.295 130.25       2.7735       NO      
+6        1702944981.620 115.41       25.4749      YES     
+7        1702944983.488 165.40       2.1164       NO      
+8        1702944984.956 145.54       2.2765       NO      
+9        1702944985.690 125.31       3.1406       NO      
+10       1702944986.424 150.27       1.2760       NO      
+11       1702944989.293 131.07       2.9711       NO      
+
+================================================================================
+END OF REPORT
+================================================================================
