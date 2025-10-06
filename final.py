@@ -3,7 +3,6 @@
 Cuboid Rotation Analysis - Complete Submission Solution
 ========================================================
 
-Assignment: 10xConstruction Perception Task
 Objective: Analyze a rotating 3D cuboidal box from depth sensor data
 
 This script performs:
@@ -13,9 +12,6 @@ This script performs:
 4. Automated report generation for submission
 
 Author: Aravind Nagarajan
-Date: October 6, 2025
-University: VIT
-Course: Perception and Computer Vision
 
 Dependencies:
 - ROS 2 Humble
