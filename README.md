@@ -2,9 +2,7 @@
 
 A CV solution for estimating the 3D rotation of a cuboid using depth image processing and plane segmentation.
 
-[![ROS2](https://img.shields.io/badge/ROS2-Humble-blue)](https://docs.ros.org/en/humble/)
-[![Python](https://img.shields.io/badge/Python-3.10+-green)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![ROS2](https://img.shields.io/badge/ROS2-Humble-blue)](https://docs.ros.org/en/humble/Releases/Release-Humble-Hawksbill.html)
 
 ![alt text](validation_frames/frame_000_validation.png) 
 
