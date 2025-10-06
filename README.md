@@ -36,6 +36,21 @@ This project implements a perception pipeline to analyze the rotation of a 3D cu
 
 ---
 
+## ROS Bag info
+
+```bash
+~/percept$ ros2 bag info depth
+
+Files:             depth.db3
+Bag size:          4.1 MiB
+Storage id:        sqlite3
+Duration:          10.672458040s
+Start:             Dec 19 2023 05:46:21.696402893 (1702944981.696402893)
+End:               Dec 19 2023 05:46:32.368860933 (1702944992.368860933)
+Messages:          7
+Topic information: Topic: /depth | Type: sensor_msgs/msg/Image | Count: 7 | Serialization Format: cdr
+```
+
 ## 🚀 Usage
 
 1.  **Play the ROS 2 Bag File:**
