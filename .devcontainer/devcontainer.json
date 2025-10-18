@@ -1,0 +1,20 @@
+{
+    "name": "ROS 2 Humble Dev Container",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash",
+        "python.defaultInterpreterPath": "/usr/bin/python3"
+    },
+    "extensions": [
+        "ms-python.python",
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "ms-iot.vscode-ros",
+        "ms-vscode.vscode-node-azure-pack"
+    ],
+    "postCreateCommand": "echo 'ROS 2 Humble container ready!'",
+    "remoteUser": "vscode",
+    "workspaceFolder": "/workspace"
+}
