@@ -62,13 +62,32 @@ def create_validation_visualization(
     if max_val > 0:
         overlay = (depth_normalized * 255 / max_val).astype(np.uint8)
     else:
-        overlay = depth_normalized.astype(np.uint8)
+        overlay = np.zeros_like(depth_normalized, dtype=np.uint8)
     overlay = cv2.cvtColor(overlay, cv2.COLOR_GRAY2BGR)
+
+    # Get valid points for convex hull
+    valid_mask = ((u_coords >= 0) & (u_coords < node.width) & 
+                  (v_coords >= 0) & (v_coords < node.height))
+    valid_points = np.column_stack((u_coords[valid_mask], v_coords[valid_mask]))
+
+    try:
+        from scipy.spatial import ConvexHull
+        hull = ConvexHull(valid_points)
+        hull_vertices = valid_points[hull.vertices]
+        
+        # Draw convex hull outline in blue
+        for i in range(len(hull_vertices)):
+            pt1 = hull_vertices[i]
+            pt2 = hull_vertices[(i + 1) % len(hull_vertices)]
+            cv2.line(overlay, tuple(pt1), tuple(pt2), (255, 0, 0), 2)
+    except:
+        # If convex hull fails, just highlight the points
+        pass
 
     # Highlight detected plane points in green
     for u, v in zip(u_coords, v_coords):
         if 0 <= u < node.width and 0 <= v < node.height:
-            cv2.circle(overlay, (u, v), 1, (0, 255, 0), -1)
+            overlay[v, u] = [0, 255, 0]  # Green
 
     ax2.imshow(cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB))
     ax2.set_title("Detected Plane (Green Overlay)", fontsize=12, fontweight="bold")
@@ -78,17 +97,30 @@ def create_validation_visualization(
     ax3 = plt.subplot(2, 3, 3)
     mask = np.zeros((node.height, node.width), dtype=np.uint8)
 
-    # Mark inlier pixels
-    for u, v in zip(u_coords, v_coords):
-        if 0 <= u < node.width and 0 <= v < node.height:
-            mask[v, u] = 255
-
-    # Dilate for better visualization
-    kernel = np.ones((3, 3), np.uint8)
-    mask = cv2.dilate(mask, kernel, iterations=1)
+    # Create filled convex hull mask
+    if len(valid_points) >= 3:
+        try:
+            # Create filled polygon from hull vertices
+            hull_vertices_int = hull_vertices.astype(np.int32)
+            cv2.fillPoly(mask, [hull_vertices_int], 255)
+            
+            # Overlay original inlier points
+            for u, v in zip(u_coords, v_coords):
+                if 0 <= u < node.width and 0 <= v < node.height:
+                    cv2.circle(mask, (u, v), 1, 128, -1)  # Mark original points in gray
+        except:
+            # Fallback to simple point mask
+            for u, v in zip(u_coords, v_coords):
+                if 0 <= u < node.width and 0 <= v < node.height:
+                    mask[v, u] = 255
+    else:
+        # Fallback if not enough points
+        for u, v in zip(u_coords, v_coords):
+            if 0 <= u < node.width and 0 <= v < node.height:
+                mask[v, u] = 255
 
     ax3.imshow(mask, cmap="gray")
-    ax3.set_title("Binary Segmentation Mask", fontsize=12, fontweight="bold")
+    ax3.set_title("Plane Segmentation (Hull Fill)", fontsize=12, fontweight="bold")
     ax3.axis("off")
 
     # ========== Panel 4: 3D Point Cloud with Normal ==========
@@ -145,8 +177,11 @@ Normal Vector:
 Normal Angle: {angle_deg:.2f}°
 Visible Area: {area_m2:.4f} m²
 
-Inlier Points: {num_inliers:,}
+Points in Face: {num_inliers:,}
 Frame Number: {frame_num}
+
+Distance Threshold: {node.ransac_distance_threshold:.3f}m
+Interior Threshold: {node.interior_distance_threshold:.3f}m
 
 {'='*30}
 """
@@ -242,11 +277,14 @@ def finalize_and_save_results(node):
             "notes": "Assumed standard 640x480 depth camera parameters",
         },
         "algorithm_parameters": {
-            "ransac_distance_threshold_m": 0.01,
-            "ransac_iterations": 1000,
+            "ransac_distance_threshold_m": node.ransac_distance_threshold,
+            "interior_distance_threshold_m": node.interior_distance_threshold,
+            "ransac_iterations": node.ransac_iterations,
             "angle_threshold_deg": node.angle_threshold_deg,
-            "statistical_outlier_neighbors": 20,
-            "statistical_outlier_std_ratio": 2.0,
+            "statistical_outlier_neighbors": node.statistical_outlier_neighbors,
+            "statistical_outlier_std_ratio": node.statistical_outlier_std_ratio,
+            "min_points_for_plane": node.min_points_for_plane,
+            "min_inliers_required": node.min_inliers_required,
         },
         "summary_statistics": {
             "total_frames_processed": node.frame_count,

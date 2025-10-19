@@ -75,10 +75,22 @@ class CuboidAnalysisNode(Node):
         self.rotation_axis_variances = None  # PCA variance explanation
 
         # ==================== Algorithm Control Parameters ====================
+        # Frame processing parameters
         self.max_frames = 50  # Maximum frames to process
         self.angle_threshold_deg = 5.0  # Angular threshold for unique normals (degrees)
         self.frames_without_new_normal = 0  # Counter for early stopping
-        self.max_frames_without_new = 5  # Stop if no new normals found
+        self.max_frames_without_new = 10  # Stop if no new normals found
+        
+        # Plane detection parameters
+        self.ransac_distance_threshold = 0.01  # RANSAC inlier threshold (meters)
+        self.interior_distance_threshold = 0.02  # Relaxed threshold for interior points
+        self.min_points_for_plane = 100  # Minimum points needed for plane detection
+        self.min_inliers_required = 50  # Minimum RANSAC inliers needed
+        self.ransac_iterations = 1000  # Number of RANSAC iterations
+        
+        # Point cloud processing parameters
+        self.statistical_outlier_neighbors = 20  # Number of neighbors for outlier removal
+        self.statistical_outlier_std_ratio = 2.0  # Standard deviation ratio for outliers
 
         # ==================== Output Directories ====================
         os.makedirs("validation_frames", exist_ok=True)
@@ -143,24 +155,17 @@ class CuboidAnalysisNode(Node):
         )
 
         # Remove statistical outliers for noise reduction
-        # This removes points that are far from their neighbors
         pcd, _ = pcd.remove_statistical_outlier(
-            nb_neighbors=20,  # Consider 20 nearest neighbors
-            std_ratio=2.0,  # Points beyond 2 std devs are outliers
+            nb_neighbors=self.statistical_outlier_neighbors,
+            std_ratio=self.statistical_outlier_std_ratio
         )
 
         return pcd
 
     def find_largest_face(self, pcd):
         """
-        Detect the largest planar surface using RANSAC plane segmentation.
-
-        RANSAC (Random Sample Consensus) is a robust algorithm for detecting
-        geometric primitives in noisy data. It works by:
-        1. Randomly selecting minimal set of points (3 for a plane)
-        2. Computing model parameters from this set
-        3. Counting inliers (points within distance threshold)
-        4. Repeating and selecting model with most inliers
+        Enhanced plane detection: RANSAC + convex hull interior filling.
+        Keeps existing RANSAC robustness while including interior points.
 
         Args:
             pcd (o3d.geometry.PointCloud): Input 3D point cloud
@@ -171,45 +176,90 @@ class CuboidAnalysisNode(Node):
                 - inlier_point_cloud: Points belonging to the plane
                 - num_inliers: Number of inlier points
                 Returns (None, None, 0) if no plane found
-
-        Mathematical Background:
-            A plane in 3D space is defined by: ax + by + cz + d = 0
-            where [a, b, c] is the normal vector (normalized to unit length)
         """
         # Validate minimum point count
-        if len(pcd.points) < 100:
+        if len(pcd.points) < self.min_points_for_plane:
             self.get_logger().warn("Insufficient points for plane detection")
-            return None, None, 0
+            return
 
-        # Apply RANSAC plane segmentation
-        plane_model, inliers = pcd.segment_plane(
-            distance_threshold=0.01,  # Points within 1cm are inliers
+        # Step 1: Standard RANSAC plane detection
+        plane_model, initial_inliers = pcd.segment_plane(
+            distance_threshold=self.ransac_distance_threshold,
             ransac_n=3,  # 3 points define a plane
-            num_iterations=1000,  # RANSAC iterations for robustness
+            num_iterations=self.ransac_iterations
         )
 
         # Validate sufficient inliers found
-        if len(inliers) < 50:
+        if len(initial_inliers) < self.min_inliers_required:
             self.get_logger().warn("Insufficient inliers in detected plane")
             return None, None, 0
 
-        # Extract plane parameters: ax + by + cz + d = 0
-        a, b, c, d = plane_model  # noqa - d is part of plane equation
-        normal = np.array([a, b, c])
-
-        # Normalize to unit vector
-        normal = normal / np.linalg.norm(normal)
-
-        # Ensure normal points toward camera (negative Z direction)
-        # Camera coordinate system: +Z points away from camera
-        camera_direction = np.array([0, 0, 1])
-        if np.dot(normal, camera_direction) > 0:
+        # Step 2: Project RANSAC inliers to 2D
+        points_3d = np.asarray(pcd.points)
+        inlier_points = points_3d[initial_inliers]
+        
+        # Project inliers to image coordinates
+        u_coords = (inlier_points[:, 0] * self.fx / inlier_points[:, 2] + self.cx).astype(int)
+        v_coords = (inlier_points[:, 1] * self.fy / inlier_points[:, 2] + self.cy).astype(int)
+        
+        # Filter valid image coordinates
+        valid_mask = ((u_coords >= 0) & (u_coords < self.width) & 
+                     (v_coords >= 0) & (v_coords < self.height))
+        
+        if np.sum(valid_mask) < 10:
+            # Fallback to original RANSAC result
+            a, b, c, d = plane_model
+            normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
+            if np.dot(normal, np.array([0, 0, 1])) > 0:
+                normal = -normal
+            return normal, pcd.select_by_index(initial_inliers), len(initial_inliers)
+        
+        valid_2d_points = np.column_stack((u_coords[valid_mask], v_coords[valid_mask]))
+        
+        # Step 3: Compute convex hull of RANSAC inliers in 2D
+        try:
+            from scipy.spatial import ConvexHull
+            hull_2d = ConvexHull(valid_2d_points)
+            hull_vertices = valid_2d_points[hull_2d.vertices]
+        except:
+            # Fallback if convex hull fails
+            a, b, c, d = plane_model
+            normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
+            if np.dot(normal, np.array([0, 0, 1])) > 0:
+                normal = -normal
+            return normal, pcd.select_by_index(initial_inliers), len(initial_inliers)
+        
+        # Step 4: Find ALL points inside the convex hull
+        all_points = np.asarray(pcd.points)
+        all_u_coords = (all_points[:, 0] * self.fx / all_points[:, 2] + self.cx).astype(int)
+        all_v_coords = (all_points[:, 1] * self.fy / all_points[:, 2] + self.cy).astype(int)
+        
+        # Check which points are inside the convex hull
+        interior_indices = []
+        a, b, c, d = plane_model
+        
+        for i, (u, v) in enumerate(zip(all_u_coords, all_v_coords)):
+            if 0 <= u < self.width and 0 <= v < self.height:
+                # Check if point is inside convex hull
+                if self.point_in_convex_polygon(u, v, hull_vertices):
+                    # Additional check: point should be close to the plane
+                    point_3d = all_points[i]
+                    plane_distance = abs(a * point_3d[0] + b * point_3d[1] + c * point_3d[2] + d)
+                    
+                    if plane_distance < self.interior_distance_threshold:
+                        interior_indices.append(i)
+        
+        # Step 5: Extract plane normal and create final point cloud
+        normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
+        if np.dot(normal, np.array([0, 0, 1])) > 0:
             normal = -normal
-
-        # Extract inlier points
-        inlier_cloud = pcd.select_by_index(inliers)
-
-        return normal, inlier_cloud, len(inliers)
+        
+        if interior_indices:
+            final_cloud = pcd.select_by_index(interior_indices)
+            return normal, final_cloud, len(interior_indices)
+        else:
+            # Fallback to original RANSAC
+            return normal, pcd.select_by_index(initial_inliers), len(initial_inliers)
 
     def calculate_normal_angle(self, normal):
         """
@@ -242,6 +292,43 @@ class CuboidAnalysisNode(Node):
         angle_deg = np.degrees(angle_rad)
 
         return angle_deg
+
+    def point_in_convex_polygon(self, x, y, polygon_vertices):
+        """
+        Fast point-in-convex-polygon test using cross product method.
+        
+        Args:
+            x, y: Point coordinates to test
+            polygon_vertices: Array of polygon vertices [(x1,y1), (x2,y2), ...]
+            
+        Returns:
+            bool: True if point is inside polygon
+        """
+        n = len(polygon_vertices)
+        if n < 3:
+            return False
+        
+        # Check if point is on the same side of all edges
+        sign = None
+        
+        for i in range(n):
+            x1, y1 = polygon_vertices[i]
+            x2, y2 = polygon_vertices[(i + 1) % n]
+            
+            # Cross product to determine which side of edge the point is on
+            cross_product = (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1)
+            
+            if abs(cross_product) < 1e-10:  # Point is on the edge
+                continue
+                
+            current_sign = cross_product > 0
+            
+            if sign is None:
+                sign = current_sign
+            elif sign != current_sign:
+                return False  # Point is on different sides of edges
+        
+        return True
 
     def calculate_visible_area(self, inlier_cloud):
         """

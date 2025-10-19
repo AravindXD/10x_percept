@@ -18,12 +18,15 @@ This project implements a perception pipeline to analyze the rotation of a 3D cu
 
 ## ✨ Features
 
+- **Plane Detection:** Combines RANSAC with convex hull interior filling for complete face detection.
 - **Real-time Analysis:** Processes depth images from a ROS 2 topic.
-- **3D Plane Segmentation:** Uses RANSAC to robustly find the largest planar face.
-- **Geometric Calculation:** Computes the face's normal angle and visible area.
+- **Robust Face Detection:** Two-stage approach with initial RANSAC followed by region filling.
+- **Advanced Visualization:** Shows convex hull boundaries and interior points for validation.
+- **Geometric Calculation:** Computes accurate face normal angles and visible areas.
 - **Rotation Axis Estimation:** Determines the object's rotation axis using PCA on collected face normals.
-- **Automated Reporting:** Generates a comprehensive set of output files, including CSV data, summary plots, and validation images.
-- **Modular Code:** Core processing logic is separated into `final.py` (ROS node) and `utils.py` (helper functions used for logging results and visualizations).
+- **Automated Reporting:** Generates comprehensive output files with detailed visualizations.
+- **Configurable Parameters:** Centralized parameter management for easy tuning.
+- **Modular Code:** Core processing logic in `final.py`, visualization in `utils.py`.
 
 ---
 
@@ -96,7 +99,108 @@ The script will process frames until it meets a stopping condition (max frames r
 
 ---
 
-## 📦 Output Files
+## � Algorithm Details
+
+### Enhanced Plane Detection Algorithm
+
+The system uses a novel two-stage approach for robust and complete plane detection:
+
+1. **Initial RANSAC Stage**
+   - Uses RANSAC to find initial plane model (ax + by + cz + d = 0)
+   - Identifies robust set of inlier points (distance < 1cm)
+   - Ensures minimum inlier count (50 points) for reliability
+
+2. **Convex Hull Fill Stage**
+   - Projects RANSAC inliers to 2D image coordinates
+   - Computes convex hull of projected points
+   - Identifies all points inside hull that satisfy plane equation
+   - Uses relaxed distance threshold (2cm) for interior points
+
+3. **Area Calculation**
+   - Primary: 3D convex hull surface area
+   - Fallback: Point density-based approximation
+   - Accounts for perspective effects using camera parameters
+
+### Key Parameters
+
+```python
+# Plane Detection
+ransac_distance_threshold = 0.01    # Initial RANSAC threshold (meters)
+interior_distance_threshold = 0.02   # Relaxed threshold for interior points
+min_points_for_plane = 100          # Minimum points needed
+min_inliers_required = 50           # Minimum RANSAC inliers
+ransac_iterations = 1000            # RANSAC iterations
+
+# Point Cloud Processing
+statistical_outlier_neighbors = 20   # Outlier removal neighbors
+statistical_outlier_std_ratio = 2.0  # Outlier std deviation ratio
+
+# Face Tracking
+angle_threshold_deg = 5.0           # Unique normal threshold
+max_frames_without_new = 5          # Early stopping condition
+```
+
+### Processing Pipeline
+
+1. **Point Cloud Generation**
+   - Convert depth image to 3D points using camera intrinsics
+   - Remove statistical outliers for noise reduction
+   - Validate minimum point count requirements
+
+2. **Plane Detection**
+   - Initial RANSAC for robust plane model
+   - Project inliers to image space
+   - Compute and fill convex hull region
+   - Collect all interior points satisfying plane equation
+
+3. **Geometric Analysis**
+   - Calculate face normal orientation
+   - Compute visible surface area
+   - Track unique face orientations
+
+4. **Rotation Analysis**
+   - Collect unique face normals
+   - Apply PCA to normal distribution
+   - Extract rotation axis from principal components
+
+## 📊 Visualization
+
+The system generates comprehensive visualizations for each frame:
+
+1. **Original Depth Image:** Raw depth data visualization
+2. **Plane Detection:** Shows detected face with convex hull boundary
+3. **Segmentation Mask:** Displays filled convex hull region
+4. **3D Point Cloud:** Shows points and normal vector
+5. **Numerical Results:** Detection parameters and measurements
+6. **Depth Distribution:** Histogram of depth values
+
+Additionally, summary visualizations include:
+- Normal angle time series
+- Visible area measurements
+- 3D visualization of face normals
+- Statistical distributions
+- Rotation axis visualization
+
+## 🔧 Parameter Tuning
+
+Key parameters can be adjusted in `final.py`:
+
+1. **RANSAC Parameters**
+   - `ransac_distance_threshold`: Initial plane fitting tolerance
+   - `interior_distance_threshold`: Relaxed threshold for interior points
+   - `ransac_iterations`: Number of RANSAC iterations
+
+2. **Face Detection**
+   - `min_points_for_plane`: Minimum required points
+   - `min_inliers_required`: Minimum RANSAC inliers
+   - `angle_threshold_deg`: Threshold for unique normals
+
+3. **Processing**
+   - `statistical_outlier_neighbors`: Outlier removal parameters
+   - `statistical_outlier_std_ratio`: Standard deviation ratio
+   - `max_frames`: Maximum frames to process
+
+## �📦 Output Files
 
 - **`submission_outputs/`**: Contains all final reports, numerical data, and summary visualizations.
 - **`validation_frames/`**: Contains detailed per-frame visualizations, showing the original depth image, detected plane, and other diagnostic information.
