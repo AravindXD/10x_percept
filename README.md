@@ -4,7 +4,7 @@ A CV solution for estimating the 3D rotation of a cuboid using depth image proce
 
 [![ROS2](https://img.shields.io/badge/ROS2-Humble-blue)](https://docs.ros.org/en/humble/Releases/Release-Humble-Hawksbill.html)
 
-![alt text](validation_frames/frame_000_validation.png) 
+![alt text](validation_frames/frame_006_validation.png) 
 
 ![alt text](validation_frames/frame_001_validation.png) 
 

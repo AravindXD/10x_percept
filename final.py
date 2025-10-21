@@ -77,7 +77,9 @@ class CuboidAnalysisNode(Node):
         self.processing_complete = False
 
         # ==================== Algorithm Control Parameters ====================
-        self.angle_threshold_deg = 0.0  # Considering all messages as unique as camera seems to be moving
+        self.angle_threshold_deg = (
+            0.0  # Considering all messages as unique as camera seems to be moving
+        )
         self.ransac_distance_threshold = 0.01
         self.interior_distance_threshold = 0.02
         self.min_points_for_plane = 100
@@ -181,6 +183,50 @@ class CuboidAnalysisNode(Node):
         # Step 2: Project RANSAC inliers to 2D
         points_3d = np.asarray(pcd.points)
         inlier_points = points_3d[initial_inliers]
+
+        inlier_cloud = o3d.geometry.PointCloud()
+        inlier_cloud.points = o3d.utility.Vector3dVector(inlier_points)
+
+        # DBSCAN for connected components
+        labels = np.array(
+            inlier_cloud.cluster_dbscan(
+                eps=self.dbscan_eps if hasattr(self, "dbscan_eps") else 0.02,
+                min_points=(
+                    self.dbscan_min_pts if hasattr(self, "dbscan_min_pts") else 80
+                ),
+            )
+        )
+
+        # Handle no clusters found
+        valid_labels = labels[labels >= 0]
+        if len(valid_labels) == 0:
+            self.get_logger().warn("No valid clusters found in plane inliers")
+            a, b, c, d = plane_model
+            normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
+            if np.dot(normal, np.array([0, 0, 1])) > 0:
+                normal = -normal
+            return normal, pcd.select_by_index(initial_inliers), len(initial_inliers)
+
+        # --- 🧩 Get top k largest clusters ---
+        counts = np.bincount(valid_labels)
+        sorted_clusters = np.argsort(counts)[::-1]  # Descending order
+
+        num_clusters_to_keep = min(2, len(sorted_clusters))
+        top_clusters = sorted_clusters[:num_clusters_to_keep]
+
+        # Merge both clusters into one refined cloud
+        combined_indices = np.concatenate(
+            [np.where(labels == c)[0] for c in top_clusters]
+        )
+
+        refined_cloud = inlier_cloud.select_by_index(combined_indices)
+
+        a, b, c, d = plane_model
+        normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
+        if np.dot(normal, np.array([0, 0, 1])) > 0:
+            normal = -normal
+
+        inlier_points = np.asarray(refined_cloud.points)
 
         # Project inliers to image coordinates
         u_coords = (
