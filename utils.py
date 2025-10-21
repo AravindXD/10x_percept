@@ -138,8 +138,8 @@ def create_validation_visualization(
         sampled_points[:, 1],
         sampled_points[:, 2],
         c="red",
-        s=2,
-        alpha=0.6,
+        s=1,
+        alpha=0.5,
         label="Detected Face",
     )
 

@@ -203,7 +203,7 @@ class CuboidAnalysisNode(Node):
             self.get_logger().warn("No valid clusters found in plane inliers")
             a, b, c, d = plane_model
             normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
-            if np.dot(normal, np.array([0, 0, 1])) > 0:
+            if np.dot(normal, np.array([0, 0, 1])) < 0:
                 normal = -normal
             return normal, pcd.select_by_index(initial_inliers), len(initial_inliers)
 
@@ -223,7 +223,7 @@ class CuboidAnalysisNode(Node):
 
         a, b, c, d = plane_model
         normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
-        if np.dot(normal, np.array([0, 0, 1])) > 0:
+        if np.dot(normal, np.array([0, 0, 1])) < 0:
             normal = -normal
 
         inlier_points = np.asarray(refined_cloud.points)
@@ -248,7 +248,7 @@ class CuboidAnalysisNode(Node):
             # Fallback to original RANSAC result
             a, b, c, d = plane_model
             normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
-            if np.dot(normal, np.array([0, 0, 1])) > 0:
+            if np.dot(normal, np.array([0, 0, 1])) < 0:
                 normal = -normal
             return normal, pcd.select_by_index(initial_inliers), len(initial_inliers)
 
@@ -265,7 +265,7 @@ class CuboidAnalysisNode(Node):
             # Fallback if convex hull fails
             a, b, c, d = plane_model
             normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
-            if np.dot(normal, np.array([0, 0, 1])) > 0:
+            if np.dot(normal, np.array([0, 0, 1])) < 0:
                 normal = -normal
             return normal, pcd.select_by_index(initial_inliers), len(initial_inliers)
 
@@ -297,7 +297,7 @@ class CuboidAnalysisNode(Node):
 
         # Step 5: Extract plane normal and create final point cloud
         normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
-        if np.dot(normal, np.array([0, 0, 1])) > 0:
+        if np.dot(normal, np.array([0, 0, 1])) < 0:
             normal = -normal
 
         if interior_indices:

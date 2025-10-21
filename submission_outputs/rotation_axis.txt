@@ -4,12 +4,12 @@ ROTATION AXIS VECTOR
 
 The rotation axis of the cuboid with respect to the camera frame:
 
-  Axis Direction Vector: [+0.999171, -0.030590, -0.026866]
+  Axis Direction Vector: [+0.998574, -0.034839, -0.040442]
 
 Component-wise breakdown:
-  X-component: +0.999171
-  Y-component: -0.030590
-  Z-component: -0.026866
+  X-component: +0.998574
+  Y-component: -0.034839
+  Z-component: -0.040442
 
 Magnitude: 1.000000 (normalized to unit vector)
 
@@ -24,8 +24,8 @@ Camera frame definition (standard computer vision convention):
 
 Interpretation:
   • X-component (+0.999): Strong rotation around horizontal axis
-  • Y-component (-0.031): Minimal vertical axis contribution
-  • Z-component (-0.027): Minimal depth axis contribution
+  • Y-component (-0.035): Minimal vertical axis contribution
+  • Z-component (-0.040): Minimal depth axis contribution
 
 Primary rotation axis: X (horizontal)
 
@@ -34,9 +34,9 @@ ESTIMATION CONFIDENCE (PCA Analysis)
 ============================================================
 
 PCA Explained Variances:
-  Component 1: 0.276883
-  Component 2: 0.019043
-  Component 3: 0.000119
+  Component 1: 0.466982
+  Component 2: 0.032746
+  Component 3: 0.000136
 
 Note: Lower variance in the rotation axis component indicates
       that face normals lie on a plane perpendicular to this axis,
@@ -44,5 +44,5 @@ Note: Lower variance in the rotation axis component indicates
 
 ============================================================
 AUTO-GENERATED
-DATE: 2025-10-21 17:44:24
+DATE: 2025-10-22 00:18:16
 ============================================================

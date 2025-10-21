@@ -7,7 +7,7 @@ ASSIGNMENT INFORMATION
 Assignment: 10xConstruction - Cuboid Rotation Analysis
 Author: Aravind Nagarajan
 University: VIT
-Date: 2025-10-21 17:44:23
+Date: 2025-10-22 00:18:16
 
 TASK DESCRIPTION
 --------------------------------------------------------------------------------
@@ -30,42 +30,44 @@ RANSAC Iterations: 1000
 Unique Normal Angle Threshold: 0.0°
 Outlier Removal - Neighbors: 20
 Outlier Removal - Std Ratio: 2.0
+DBSCAN Epsilon: 0.02
+DBSCAN Min Points: 80
 
 SUMMARY RESULTS
 ================================================================================
 Unique Face Orientations Detected: 7
 
 Normal Angle Statistics:
-  Mean: 138.11°
-  Std Dev: 15.42°
+  Mean: 42.30°
+  Std Dev: 15.61°
 
 Visible Area Statistics:
-  Mean: 1.4635 m²
-  Std Dev: 0.2238 m²
-  Min: 1.2287 m²
-  Max: 1.8212 m²
+  Mean: 1.4551 m²
+  Std Dev: 0.1821 m²
+  Min: 1.2623 m²
+  Max: 1.7189 m²
 
 ROTATION AXIS ESTIMATION
 --------------------------------------------------------------------------------
 Rotation Axis Direction (unit vector):
-  X: +0.999171
-  Y: -0.030590
-  Z: -0.026866
+  X: +0.998574
+  Y: -0.034839
+  Z: -0.040442
 Magnitude: 1.000000
 
-PCA Explained Variances: [0.27688283908600386, 0.019043409756948296, 0.00011908218486944696]
+PCA Explained Variances: [0.4669815975811224, 0.03274586574549134, 0.00013597195549047437]
 
 PER-FRAME RESULTS SUMMARY
 ================================================================================
 Frame    Timestamp    Angle (°)    Area (m²)    Unique  
 --------------------------------------------------------------------------------
-0        1702944992.295 131.29       1.2287       YES     
-1        1702944984.956 145.21       1.7187       YES     
-2        1702944985.690 128.74       1.2958       YES     
-3        1702944986.424 149.93       1.3270       YES     
-4        1702944989.293 130.93       1.8212       YES     
-5        1702944981.620 115.06       1.2638       YES     
-6        1702944983.488 165.61       1.5893       YES     
+0        1702944981.620 64.89        1.2642       YES     
+1        1702944983.488 14.75        1.5613       YES     
+2        1702944984.956 34.79        1.7189       YES     
+3        1702944985.690 54.25        1.3952       YES     
+4        1702944986.424 29.92        1.3030       YES     
+5        1702944989.293 48.69        1.6808       YES     
+6        1702944992.295 48.84        1.2623       YES     
 
 ================================================================================
 END OF REPORT
