@@ -87,6 +87,8 @@ class CuboidAnalysisNode(Node):
         self.ransac_iterations = 1000
         self.statistical_outlier_neighbors = 20
         self.statistical_outlier_std_ratio = 2.0
+        self.dbscan_eps = 0.02
+        self.dbscan_min_pts = 80
 
         # ==================== Output Directories ====================
         os.makedirs("validation_frames", exist_ok=True)
@@ -190,10 +192,8 @@ class CuboidAnalysisNode(Node):
         # DBSCAN for connected components
         labels = np.array(
             inlier_cloud.cluster_dbscan(
-                eps=self.dbscan_eps if hasattr(self, "dbscan_eps") else 0.02,
-                min_points=(
-                    self.dbscan_min_pts if hasattr(self, "dbscan_min_pts") else 80
-                ),
+                eps=self.dbscan_eps,
+                min_points=self.dbscan_min_pts,
             )
         )
 

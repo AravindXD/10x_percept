@@ -290,6 +290,8 @@ def finalize_and_save_results(node):
             "statistical_outlier_std_ratio": node.statistical_outlier_std_ratio,
             "min_points_for_plane": node.min_points_for_plane,
             "min_inliers_required": node.min_inliers_required,
+            "dbscan_eps": node.dbscan_eps,
+            "dbscan_min_pts": node.dbscan_min_pts,
         },
         "summary_statistics": {
             "unique_faces_detected": len(node.unique_normals),
@@ -620,6 +622,8 @@ def generate_text_report(node, data):
     report_lines.append(
         f"Outlier Removal - Std Ratio: {algo['statistical_outlier_std_ratio']}"
     )
+    report_lines.append(f"DBSCAN Epsilon: {algo.get('dbscan_eps', 'N/A')}")
+    report_lines.append(f"DBSCAN Min Points: {algo.get('dbscan_min_pts', 'N/A')}")
     report_lines.append("")
 
     # Summary Results

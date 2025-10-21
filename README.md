@@ -16,20 +16,6 @@ This project implements a perception pipeline to analyze the rotation of a 3D cu
 
 ---
 
-## ✨ Features
-
-- **Plane Detection:** Combines RANSAC with convex hull interior filling for complete face detection.
-- **Real-time Analysis:** Processes depth images from a ROS 2 topic.
-- **Robust Face Detection:** Two-stage approach with initial RANSAC followed by region filling.
-- **Advanced Visualization:** Shows convex hull boundaries and interior points for validation.
-- **Geometric Calculation:** Computes accurate face normal angles and visible areas.
-- **Rotation Axis Estimation:** Determines the object's rotation axis using PCA on collected face normals.
-- **Automated Reporting:** Generates comprehensive output files with detailed visualizations.
-- **Configurable Parameters:** Centralized parameter management for easy tuning.
-- **Modular Code:** Core processing logic in `final.py`, visualization in `utils.py`.
-
----
-
 ## 💻 System Requirements
 
 - **OS:** Ubuntu 22.04 LTS
@@ -102,26 +88,27 @@ The script will process frames until it meets a stopping condition (max frames r
 
 ## Processing Pipeline
 
-1. **Point Cloud Generation**
-   - Convert depth image to 3D points using camera intrinsics
-   - Remove statistical outliers for noise reduction
-   - Validate minimum point count requirements
+The core logic processes each depth frame through a multi-stage pipeline to identify the largest cuboid face and its properties.
 
-2. **Plane Detection**
-   - Initial RANSAC for robust plane model
-   - Project inliers to image space
-   - Compute and fill convex hull region
-   - Collect all interior points satisfying plane equation
+1.  **Preprocessing: Depth to Point Cloud**
+    *   A raw depth image is converted into a 3D point cloud using the camera's intrinsic parameters (focal length, principal point).
+    *   Statistical outlier removal is applied to the point cloud to eliminate sensor noise.
 
-3. **Geometric Analysis**
-   - Calculate face normal orientation
-   - Compute visible surface area
-   - Track unique face orientations
+2.  **Plane Segmentation: RANSAC + DBSCAN + Convex Hull**
+    *   **RANSAC:** The robust RANSAC algorithm is first applied to find the dominant plane in the point cloud, identifying an initial set of inlier points.
+    *   **DBSCAN Clustering:** The RANSAC inliers are clustered using DBSCAN to isolate the main connected component, effectively removing disconnected noise points that happen to lie on the same plane. The largest cluster(s) are retained.
+    *   **2D Projection & Convex Hull:** The refined inlier points are projected onto the 2D image plane. A convex hull is computed around these 2D points to define the boundary of the visible face.
+    *   **Interior Filling:** The algorithm iterates through every point in the original point cloud. Any point that falls within the 2D convex hull and is also close to the original RANSAC plane is considered part of the final face. This "fills in" any holes or sparse regions on the face.
 
-4. **Rotation Analysis**
-   - Collect unique face normals
-   - Apply PCA to normal distribution
-   - Extract rotation axis from principal components
+3.  **Geometric Property Calculation**
+    *   **Normal Vector:** The normal vector of the plane is determined from the RANSAC model, oriented to point away from the camera.
+    *   **Normal Angle:** The angle between the face normal and the camera's viewing axis (Z-axis) is calculated to determine the face's orientation.
+    *   **Visible Area:** The surface area of the detected face is computed by creating a 3D convex hull from the final set of inlier points and measuring its area in square meters.
+
+4.  **Temporal Analysis: Rotation Axis Estimation**
+    *   **Unique Normal Tracking:** As frames are processed, the normal vector of the detected face is stored only if it represents a new, unique orientation (i.e., the angle to all previously stored normals is above a threshold).
+    *   **Principal Component Analysis (PCA):** After collecting a set of unique normals, PCA is applied. The principal component with the *least* variance corresponds to the axis of rotation, as all the normal vectors lie on a plane perpendicular to this axis.
+    *   **Axis Normalization:** The resulting vector is normalized to produce the final unit vector representing the axis of rotation.
 
 ## 📊 Visualization
 
