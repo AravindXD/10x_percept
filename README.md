@@ -99,48 +99,8 @@ The script will process frames until it meets a stopping condition (max frames r
 
 ---
 
-## � Algorithm Details
 
-### Enhanced Plane Detection Algorithm
-
-The system uses a novel two-stage approach for robust and complete plane detection:
-
-1. **Initial RANSAC Stage**
-   - Uses RANSAC to find initial plane model (ax + by + cz + d = 0)
-   - Identifies robust set of inlier points (distance < 1cm)
-   - Ensures minimum inlier count (50 points) for reliability
-
-2. **Convex Hull Fill Stage**
-   - Projects RANSAC inliers to 2D image coordinates
-   - Computes convex hull of projected points
-   - Identifies all points inside hull that satisfy plane equation
-   - Uses relaxed distance threshold (2cm) for interior points
-
-3. **Area Calculation**
-   - Primary: 3D convex hull surface area
-   - Fallback: Point density-based approximation
-   - Accounts for perspective effects using camera parameters
-
-### Key Parameters
-
-```python
-# Plane Detection
-ransac_distance_threshold = 0.01    # Initial RANSAC threshold (meters)
-interior_distance_threshold = 0.02   # Relaxed threshold for interior points
-min_points_for_plane = 100          # Minimum points needed
-min_inliers_required = 50           # Minimum RANSAC inliers
-ransac_iterations = 1000            # RANSAC iterations
-
-# Point Cloud Processing
-statistical_outlier_neighbors = 20   # Outlier removal neighbors
-statistical_outlier_std_ratio = 2.0  # Outlier std deviation ratio
-
-# Face Tracking
-angle_threshold_deg = 5.0           # Unique normal threshold
-max_frames_without_new = 5          # Early stopping condition
-```
-
-### Processing Pipeline
+## Processing Pipeline
 
 1. **Point Cloud Generation**
    - Convert depth image to 3D points using camera intrinsics
@@ -200,9 +160,9 @@ Key parameters can be adjusted in `final.py`:
    - `statistical_outlier_std_ratio`: Standard deviation ratio
    - `max_frames`: Maximum frames to process
 
-## �📦 Output Files
+## 📦 Output Files
 
-- **`submission_outputs/`**: Contains all final reports, numerical data, and summary visualizations.
+- **`submission_outputs/`**: Contains all final reports, numerical data, and summary visualizations as requested for submission.
 - **`validation_frames/`**: Contains detailed per-frame visualizations, showing the original depth image, detected plane, and other diagnostic information.
 
 ---

@@ -1,3 +1,4 @@
 .ruff_cache
 old
 __pycache__
+.vscode

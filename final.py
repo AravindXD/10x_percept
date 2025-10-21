@@ -20,6 +20,7 @@ Dependencies:
 """
 
 import os
+import sys
 
 import numpy as np
 import open3d as o3d
@@ -54,12 +55,9 @@ class CuboidAnalysisNode(Node):
         self.subscription = self.create_subscription(
             Image, "/depth", self.depth_callback, 10
         )
-        self.subscription  # noqa - Prevent garbage collection for ROS 2
         self.bridge = CvBridge()
 
         # ==================== Camera Intrinsic Parameters ====================
-        # Assumption: Standard parameters for a 640x480 depth camera
-        # These values represent a typical RGB-D sensor like Intel RealSense or Kinect
         self.fx = 525.0  # Focal length in X direction (pixels)
         self.fy = 525.0  # Focal length in Y direction (pixels)
         self.cx = 319.5  # Principal point X coordinate (pixels)
@@ -68,29 +66,25 @@ class CuboidAnalysisNode(Node):
         self.height = 480  # Image height (pixels)
 
         # ==================== Data Storage ====================
-        self.frame_count = 0  # Total frames processed
-        self.results = []  # Per-frame analysis results
-        self.unique_normals = []  # Collection of unique face normals
-        self.rotation_axis = None  # Estimated rotation axis vector
-        self.rotation_axis_variances = None  # PCA variance explanation
+        self.results = []
+        self.unique_normals = []
+        self.rotation_axis = None
+        self.rotation_axis_variances = None
+
+        # Track processed timestamps to handle looping
+        self.processed_timestamps = set()
+        self.total_expected_messages = 7
+        self.processing_complete = False
 
         # ==================== Algorithm Control Parameters ====================
-        # Frame processing parameters
-        self.max_frames = 50  # Maximum frames to process
-        self.angle_threshold_deg = 5.0  # Angular threshold for unique normals (degrees)
-        self.frames_without_new_normal = 0  # Counter for early stopping
-        self.max_frames_without_new = 10  # Stop if no new normals found
-        
-        # Plane detection parameters
-        self.ransac_distance_threshold = 0.01  # RANSAC inlier threshold (meters)
-        self.interior_distance_threshold = 0.02  # Relaxed threshold for interior points
-        self.min_points_for_plane = 100  # Minimum points needed for plane detection
-        self.min_inliers_required = 50  # Minimum RANSAC inliers needed
-        self.ransac_iterations = 1000  # Number of RANSAC iterations
-        
-        # Point cloud processing parameters
-        self.statistical_outlier_neighbors = 20  # Number of neighbors for outlier removal
-        self.statistical_outlier_std_ratio = 2.0  # Standard deviation ratio for outliers
+        self.angle_threshold_deg = 0.0  # Considering all messages as unique as camera seems to be moving
+        self.ransac_distance_threshold = 0.01
+        self.interior_distance_threshold = 0.02
+        self.min_points_for_plane = 100
+        self.min_inliers_required = 50
+        self.ransac_iterations = 1000
+        self.statistical_outlier_neighbors = 20
+        self.statistical_outlier_std_ratio = 2.0
 
         # ==================== Output Directories ====================
         os.makedirs("validation_frames", exist_ok=True)
@@ -98,20 +92,10 @@ class CuboidAnalysisNode(Node):
 
         # ==================== Startup Logging ====================
         self.get_logger().info("=" * 70)
-        self.get_logger().info("CUBOID ROTATION ANALYSIS - SUBMISSION VERSION")
+        self.get_logger().info("CUBOID ROTATION ANALYSIS - 7 MESSAGE VERSION")
         self.get_logger().info("=" * 70)
-        self.get_logger().info(f"Camera Configuration: {self.width}x{self.height}")
-        self.get_logger().info(
-            f"Intrinsics: fx={self.fx}, fy={self.fy}, cx={self.cx}, cy={self.cy}"
-        )
-        self.get_logger().info("Stopping Conditions:")
-        self.get_logger().info(f"  - Max frames: {self.max_frames}")
-        self.get_logger().info(
-            f"  - No new normals for: {self.max_frames_without_new} frames"
-        )
-        self.get_logger().info("Output Directories:")
-        self.get_logger().info("  - Validation images: ./validation_frames/")
-        self.get_logger().info("  - Submission files: ./submission_outputs/")
+        self.get_logger().info(f"Expected messages: {self.total_expected_messages}")
+        self.get_logger().info("Run with: ros2 bag play depth/ --loop")
         self.get_logger().info("=" * 70 + "\n")
 
     # ==================== CORE PERCEPTION ALGORITHMS ====================
@@ -157,12 +141,12 @@ class CuboidAnalysisNode(Node):
         # Remove statistical outliers for noise reduction
         pcd, _ = pcd.remove_statistical_outlier(
             nb_neighbors=self.statistical_outlier_neighbors,
-            std_ratio=self.statistical_outlier_std_ratio
+            std_ratio=self.statistical_outlier_std_ratio,
         )
 
         return pcd
 
-    def find_largest_face(self, pcd):
+    def find_largest_face(self, pcd: o3d.geometry.PointCloud):
         """
         Enhanced plane detection: RANSAC + convex hull interior filling.
         Keeps existing RANSAC robustness while including interior points.
@@ -180,13 +164,13 @@ class CuboidAnalysisNode(Node):
         # Validate minimum point count
         if len(pcd.points) < self.min_points_for_plane:
             self.get_logger().warn("Insufficient points for plane detection")
-            return
+            return None, None, 0
 
         # Step 1: Standard RANSAC plane detection
         plane_model, initial_inliers = pcd.segment_plane(
             distance_threshold=self.ransac_distance_threshold,
             ransac_n=3,  # 3 points define a plane
-            num_iterations=self.ransac_iterations
+            num_iterations=self.ransac_iterations,
         )
 
         # Validate sufficient inliers found
@@ -197,15 +181,23 @@ class CuboidAnalysisNode(Node):
         # Step 2: Project RANSAC inliers to 2D
         points_3d = np.asarray(pcd.points)
         inlier_points = points_3d[initial_inliers]
-        
+
         # Project inliers to image coordinates
-        u_coords = (inlier_points[:, 0] * self.fx / inlier_points[:, 2] + self.cx).astype(int)
-        v_coords = (inlier_points[:, 1] * self.fy / inlier_points[:, 2] + self.cy).astype(int)
-        
+        u_coords = (
+            inlier_points[:, 0] * self.fx / inlier_points[:, 2] + self.cx
+        ).astype(int)
+        v_coords = (
+            inlier_points[:, 1] * self.fy / inlier_points[:, 2] + self.cy
+        ).astype(int)
+
         # Filter valid image coordinates
-        valid_mask = ((u_coords >= 0) & (u_coords < self.width) & 
-                     (v_coords >= 0) & (v_coords < self.height))
-        
+        valid_mask = (
+            (u_coords >= 0)
+            & (u_coords < self.width)
+            & (v_coords >= 0)
+            & (v_coords < self.height)
+        )
+
         if np.sum(valid_mask) < 10:
             # Fallback to original RANSAC result
             a, b, c, d = plane_model
@@ -213,47 +205,55 @@ class CuboidAnalysisNode(Node):
             if np.dot(normal, np.array([0, 0, 1])) > 0:
                 normal = -normal
             return normal, pcd.select_by_index(initial_inliers), len(initial_inliers)
-        
+
         valid_2d_points = np.column_stack((u_coords[valid_mask], v_coords[valid_mask]))
-        
+
         # Step 3: Compute convex hull of RANSAC inliers in 2D
         try:
             from scipy.spatial import ConvexHull
+
             hull_2d = ConvexHull(valid_2d_points)
             hull_vertices = valid_2d_points[hull_2d.vertices]
-        except:
+        except Exception as e:
+            self.get_logger().error(f"Unexpected error: {e}")
             # Fallback if convex hull fails
             a, b, c, d = plane_model
             normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
             if np.dot(normal, np.array([0, 0, 1])) > 0:
                 normal = -normal
             return normal, pcd.select_by_index(initial_inliers), len(initial_inliers)
-        
+
         # Step 4: Find ALL points inside the convex hull
         all_points = np.asarray(pcd.points)
-        all_u_coords = (all_points[:, 0] * self.fx / all_points[:, 2] + self.cx).astype(int)
-        all_v_coords = (all_points[:, 1] * self.fy / all_points[:, 2] + self.cy).astype(int)
-        
+        all_u_coords = (all_points[:, 0] * self.fx / all_points[:, 2] + self.cx).astype(
+            int
+        )
+        all_v_coords = (all_points[:, 1] * self.fy / all_points[:, 2] + self.cy).astype(
+            int
+        )
+
         # Check which points are inside the convex hull
         interior_indices = []
         a, b, c, d = plane_model
-        
+
         for i, (u, v) in enumerate(zip(all_u_coords, all_v_coords)):
             if 0 <= u < self.width and 0 <= v < self.height:
                 # Check if point is inside convex hull
                 if self.point_in_convex_polygon(u, v, hull_vertices):
                     # Additional check: point should be close to the plane
                     point_3d = all_points[i]
-                    plane_distance = abs(a * point_3d[0] + b * point_3d[1] + c * point_3d[2] + d)
-                    
+                    plane_distance = abs(
+                        a * point_3d[0] + b * point_3d[1] + c * point_3d[2] + d
+                    )
+
                     if plane_distance < self.interior_distance_threshold:
                         interior_indices.append(i)
-        
+
         # Step 5: Extract plane normal and create final point cloud
         normal = np.array([a, b, c]) / np.linalg.norm([a, b, c])
         if np.dot(normal, np.array([0, 0, 1])) > 0:
             normal = -normal
-        
+
         if interior_indices:
             final_cloud = pcd.select_by_index(interior_indices)
             return normal, final_cloud, len(interior_indices)
@@ -296,38 +296,38 @@ class CuboidAnalysisNode(Node):
     def point_in_convex_polygon(self, x, y, polygon_vertices):
         """
         Fast point-in-convex-polygon test using cross product method.
-        
+
         Args:
             x, y: Point coordinates to test
             polygon_vertices: Array of polygon vertices [(x1,y1), (x2,y2), ...]
-            
+
         Returns:
             bool: True if point is inside polygon
         """
         n = len(polygon_vertices)
         if n < 3:
             return False
-        
+
         # Check if point is on the same side of all edges
         sign = None
-        
+
         for i in range(n):
             x1, y1 = polygon_vertices[i]
             x2, y2 = polygon_vertices[(i + 1) % n]
-            
+
             # Cross product to determine which side of edge the point is on
             cross_product = (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1)
-            
+
             if abs(cross_product) < 1e-10:  # Point is on the edge
                 continue
-                
+
             current_sign = cross_product > 0
-            
+
             if sign is None:
                 sign = current_sign
             elif sign != current_sign:
                 return False  # Point is on different sides of edges
-        
+
         return True
 
     def calculate_visible_area(self, inlier_cloud):
@@ -354,10 +354,13 @@ class CuboidAnalysisNode(Node):
 
             # Get surface area in m²
             area = hull.get_surface_area()
+            self.get_logger().info("Computed using 3D convex hull")
 
             return area
 
-        except Exception:
+        except Exception as e:
+            self.get_logger().error(f"Unexpected error: {e}")
+
             # Fallback: Estimate from point density
             points = np.asarray(inlier_cloud.points)
             avg_depth = np.mean(points[:, 2])
@@ -404,7 +407,7 @@ class CuboidAnalysisNode(Node):
             angle_deg = np.degrees(np.arccos(np.clip(np.abs(dot_product), -1.0, 1.0)))
 
             # If angle is small, normals are similar
-            if angle_deg < self.angle_threshold_deg:
+            if angle_deg <= self.angle_threshold_deg:
                 return False
 
         return True
@@ -413,27 +416,9 @@ class CuboidAnalysisNode(Node):
 
     def should_stop_processing(self):
         """
-        Check if processing should stop based on termination conditions.
-
-        Returns:
-            bool: True if should stop, False if should continue
+        Check if processing should stop - now based on 7 unique messages.
         """
-        # Stop if maximum frames reached
-        if self.frame_count >= self.max_frames:
-            self.get_logger().info(
-                f"\n>>> Stopping: Reached maximum frames ({self.max_frames})"
-            )
-            return True
-
-        # Stop if no new normals found for extended period
-        if self.frames_without_new_normal >= self.max_frames_without_new:
-            self.get_logger().info(
-                f"\n>>> Stopping: No new unique normals for {self.max_frames_without_new} frames"
-            )
-            self.get_logger().info("    All visible face orientations likely captured")
-            return True
-
-        return False
+        return len(self.processed_timestamps) >= self.total_expected_messages
 
     def depth_callback(self, msg):
         """
@@ -450,70 +435,68 @@ class CuboidAnalysisNode(Node):
         Args:
             msg (sensor_msgs.msg.Image): Incoming depth image message
         """
-        # Check termination conditions
-        if self.should_stop_processing():
-            utils.finalize_and_save_results(self)
-            raise KeyboardInterrupt
-            # rclpy.shutdown()
-            # return
+
+        if self.processing_complete:
+            return
+
+        # Get timestamp to identify unique messages
+        timestamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+
+        # Skip if we've already processed this timestamp
+        if timestamp in self.processed_timestamps:
+            return
+
+        self.processed_timestamps.add(timestamp)
 
         try:
-            # ========== Step 1: Convert ROS Message to NumPy ==========
+            # Convert ROS Message to NumPy
             depth_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
 
-            # Convert to meters if necessary
             if depth_image.dtype == np.uint16:
                 depth_m = depth_image.astype(np.float32) / 1000.0
             else:
                 depth_m = depth_image.astype(np.float32)
 
-            # Extract timestamp
-            timestamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-
             self.get_logger().info(f'\n{"="*60}')
             self.get_logger().info(
-                f"Processing Frame {self.frame_count} | Timestamp: {timestamp:.3f}s"
+                f"Processing Frame {len(self.processed_timestamps)}/{self.total_expected_messages} | Timestamp: {timestamp:.3f}s"
             )
             self.get_logger().info(f'{"="*60}')
 
-            # ========== Step 2: Convert to 3D Point Cloud ==========
+            # Convert to 3D Point Cloud
             pcd = self.depth_to_pointcloud(depth_m)
 
             if len(pcd.points) < 100:
                 self.get_logger().warn("Insufficient valid points in point cloud")
-                self.frame_count += 1
                 return
 
-            # ========== Step 3: Detect Largest Planar Face ==========
+            # Detect Largest Planar Face
             normal, inlier_cloud, num_inliers = self.find_largest_face(pcd)
 
             if normal is None:
                 self.get_logger().warn("No planar face detected in frame")
-                self.frame_count += 1
                 return
 
-            # ========== Step 4: Calculate Geometric Properties ==========
+            # Calculate Geometric Properties
             angle_deg = self.calculate_normal_angle(normal)
             area_m2 = self.calculate_visible_area(inlier_cloud)
 
-            # ========== Step 5: Check for Unique Normal ==========
+            # Check for Unique Normal (keep existing logic for now)
             is_new_normal = self.is_normal_unique(normal)
 
             if is_new_normal:
                 self.unique_normals.append(normal)
-                self.frames_without_new_normal = 0
                 self.get_logger().info(
                     f"✓ NEW UNIQUE NORMAL DETECTED! Total unique faces: {len(self.unique_normals)}"
                 )
             else:
-                self.frames_without_new_normal += 1
                 self.get_logger().info(
                     f"  Similar to existing normal (total unique: {len(self.unique_normals)})"
                 )
 
-            # ========== Step 6: Store Frame Results ==========
+            # Store Frame Results
             frame_result = {
-                "frame": self.frame_count,
+                "frame": len(self.processed_timestamps) - 1,  # 0-indexed
                 "timestamp": float(timestamp),
                 "normal": normal.tolist(),
                 "angle_degrees": float(angle_deg),
@@ -523,7 +506,7 @@ class CuboidAnalysisNode(Node):
             }
             self.results.append(frame_result)
 
-            # ========== Step 7: Create Validation Visualization ==========
+            # Create Validation Visualization
             validation_file = utils.create_validation_visualization(
                 self,
                 depth_m,
@@ -532,10 +515,10 @@ class CuboidAnalysisNode(Node):
                 angle_deg,
                 area_m2,
                 num_inliers,
-                self.frame_count,
+                len(self.processed_timestamps) - 1,
             )
 
-            # ========== Step 8: Log Results ==========
+            # Log Results
             self.get_logger().info(
                 f"Normal Vector: [{normal[0]:.3f}, {normal[1]:.3f}, {normal[2]:.3f}]"
             )
@@ -544,15 +527,21 @@ class CuboidAnalysisNode(Node):
             self.get_logger().info(f"Inlier Points: {num_inliers:,}")
             self.get_logger().info(f"Validation image saved: {validation_file}")
 
-            self.frame_count += 1
+            # Check if we're done
+            if len(self.processed_timestamps) >= self.total_expected_messages:
+                self.get_logger().info(
+                    f"\n🎯 Collected all {self.total_expected_messages} unique frames! Finalizing..."
+                )
+                utils.finalize_and_save_results(self)
+                self.processing_complete = True
+                # rclpy.shutdown()
+                sys.exit(0)
 
         except Exception as e:
             self.get_logger().error(f"Error processing frame: {e}")
             import traceback
 
             self.get_logger().error(traceback.format_exc())
-
-    # ==================== FINALIZATION AND OUTPUT GENERATION ====================
 
     def estimate_rotation_axis(self):
         """
